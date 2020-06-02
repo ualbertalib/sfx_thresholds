@@ -1,5 +1,11 @@
 <?php
 
+/*
+ * Description of helper
+ * 
+ * @author Jeremy Hennig <jhennig@ualberta.ca>
+ */
+
 
 function cleanParen($value){
      $value=ltrim(trim($value),'(');

@@ -213,7 +213,7 @@ class Threshold2 {
 
 
             $msg = "";
-             $this->myMsg[$OP_ID] = " Most recent " . $period . " " . $unit . "(s) not available";
+             $this->myMsg[$OP_ID] = "Most recent " . $period . " " . $unit . "(s) not available";
 
                 if ($unit == 'year') {
                     //multiply the period by 12 if the period is in years.
@@ -664,8 +664,14 @@ class Threshold2 {
 							  }   
 						  }  */ 
 				  }
-				  $msg .=" \n";
+				  $msg .=" | ";
 			}
+			
+			// If the delimiter " | " is not set in the message then append it.
+			if(substr($msg, -3, 3) != " | "){				
+				$msg .= " | ";				
+			}
+			
        //}else{
                     
                    /*	//Code that was used for when there is a == as the operator. example display: "1990 Only"

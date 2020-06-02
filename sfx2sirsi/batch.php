@@ -9,10 +9,16 @@ set_time_limit(0);
 ini_set('display_errors',1);
 error_reporting(E_ALL);
 
-
+function cleanSpaces($str){	
+	
+	$str = str_replace(") - Most recent", ")-Most recent", $str);
+	return str_replace(") - (", ")-(", $str);
+		
+}
 
 
 try{
+$error = array();	
 include_once('config.inc.php');
 
 
@@ -24,15 +30,24 @@ $myDate = new DateTime('now');
 
 $counter = 0;
 
-if (isset($_POST['objectId'])){
+if (defined('STDIN') && isset($argv[1])) {
+  $objectId = $argv[1];
+} elseif (isset($_POST['objectId'])) { 
+  $objectId = $_POST['objectId'];
+}
+
+if (isset($objectId)){
 $sfx_query = "SELECT distinct OBJECT_ID 
 FROM thresholds
-WHERE OBJECT_ID IN ( {$_POST['objectId']} )  ORDER BY OBJECT_ID;";
+WHERE OBJECT_ID IN ( {$objectId} ) AND
+Threshold != 'N'
+ORDER BY OBJECT_ID;";
 
 }else{
 
 $sfx_query = "SELECT distinct OBJECT_ID 
 FROM thresholds
+WHERE Threshold != 'N'  
 ORDER BY OBJECT_ID";
 }
 
@@ -42,14 +57,16 @@ $sth = $conn->prepare($sfx_query);
 $sth->execute();
 $result = $sth->fetchAll(PDO::FETCH_ASSOC);
 
-echo "<b>Number of Objects: </b>" . $sth->rowCount() ."<br> <hr>";
+echo "Number of Objects:" . $sth->rowCount() ."\r\n";
 
- $sfx_query = "SELECT DISTINCT OP_ID, Threshold Threshold, LCL_Threshold , IS_FREE 
+ $sfx_query = "SELECT DISTINCT OP_ID, trim(Threshold) Threshold, trim(LCL_Threshold) LCL_Threshold , IS_FREE 
             FROM  thresholds
-            WHERE object_id = :object_id                      
+            WHERE object_id = :object_id and Threshold != 'N'            
             ORDER BY object_id";
 
 $sth1 = $conn->prepare($sfx_query);
+
+
 		
 foreach ($result as $row ){
     
@@ -65,21 +82,18 @@ foreach ($result as $row ){
 		$sth1->execute();
 		$result2 = $sth1->fetchAll();
 		
-        //$result2 = mysql_query($sfx_query,$SFX_link) or die('error2:' . mysql_error()) ;
-        
-       // echo $sfx_query;
-        
+		
         $runonce=0;
         $IS_FREE=0;
-        echo "<strong>" . $row['OBJECT_ID'] . "</strong> -- ";
+        echo "" . $row['OBJECT_ID'] . " | ";
          foreach ( $result2 as $row2 ){
                             if ($row2['IS_FREE']==1){
                                 $IS_FREE=1;
                             }
                             if ($row2['LCL_Threshold']!=""){
-                                    $mythreshold = $row2['LCL_Threshold'];
+                                    $mythreshold = trim($row2['LCL_Threshold'],'&|');
                             }else{
-                                    $mythreshold = $row2['Threshold'];
+                                    $mythreshold = trim($row2['Threshold'],'&|');
                             }   
                             
                     $obj->setOP_ID($row2['OP_ID']);                
@@ -101,32 +115,26 @@ foreach ($result as $row ){
 										
 										$call = $thresh[$key];	
 										
-										try {
+										try {											
 												$worked = @eval($call . "; return true;"); 		
 											} catch (ParseError $e) {
 												echo 'Caught exception: '.$e->getMessage()."\n";
+												$error[] = "Object: {$row['OBJECT_ID']}: Error -> " . $e->getMessage();
 											} catch (ArgumentCountError $e){
 												echo 'Caught exception: '.$e->getMessage()."\n";
+												$error[] = "Object: {$row['OBJECT_ID']}: Error -> " . $e->getMessage();
+											} catch (Exception $e){
+												$error[] = "Object: {$row['OBJECT_ID']}: Error -> " . $e->getMessage();
 											}
-										
-										
-									
-										//if($worked==false){		
-									
-											//$fileWriter->write("Object ID: " . $row['OBJECT_ID'] . " " . ob_get_contents());
-										//}
 										
 									
 										
           							}else{
 										
-										$warning = "Warning - Method: " . $thresh[$key] . " is not defined. ". $myMethod . "Does not exist\n Error occured on object ID: " . $row['OBJECT_ID'];
-										//$fileWriter->write("Object ID: " . $row['OBJECT_ID'] . " " . $warning);
+										$warning = "Warning - Method: " . $thresh[$key] . " is not defined. '". $myMethod . "' Does not exist\n Error occured on object ID: " . $row['OBJECT_ID'];
+										$error[] = $warning;
+																		
 										
-										trigger_error($warning, E_USER_WARNING);
-										
-										//ob_flush();
-										//ob_end_clean();
           								continue 2;
           							}
 									
@@ -145,30 +153,37 @@ foreach ($result as $row ){
           $obj->timespan_merge();
               $obj->removeOverlap();
           if ($runonce==1){
-            
+           
             $msg = $obj->translateDateRange();
-			
+			//$msg .= "TRANSLATE";
+			 
 			
 			
             //fwrite($myFile,$msg);
 			if ($IS_FREE==1){
-        echo $msg . "[IS_FREE] " . "<br>";
+				echo cleanSpaces($msg) . "[IS_FREE] \r\n";
 			}else{
-			  echo $msg . "<br>";
+				echo cleanSpaces($msg) . "[NOT_FREE] \r\n";
 			}
          }
 
+}
+
+
+
+
+if(count($error)>0){
+	$body = implode("\r\n", $error);
+	mail($ERROR_EMAILS, "Error in Threshold Process", $body, "from: libwebms@ualberta.ca");
 }
 
 }catch(Exception $ex){
 		
 		$msg =  "Error occured in " . $ex->getFile() . "\n Error Message:" . $ex->getMessage();
 		echo $msg;
-	//	error_log($msg,0 );		
-		//mail ( ADMIN_EMAIL , EMAIL_ERROR_SUBJECT , $msg , "From: libwebms@ualberta.ca" );
+		mail ( ADMIN_EMAIL , 'Threshold Processing Error Occured' , $msg , "from: libwebms@ualberta.ca");
 		
 }
 
         
         
-?>
