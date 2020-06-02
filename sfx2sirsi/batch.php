@@ -39,15 +39,13 @@ if (defined('STDIN') && isset($argv[1])) {
 if (isset($objectId)){
 $sfx_query = "SELECT distinct OBJECT_ID 
 FROM thresholds
-WHERE OBJECT_ID IN ( {$objectId} ) AND
-Threshold != 'N'
+WHERE OBJECT_ID IN ( {$objectId} ) 
 ORDER BY OBJECT_ID;";
 
 }else{
 
 $sfx_query = "SELECT distinct OBJECT_ID 
 FROM thresholds
-WHERE Threshold != 'N'  
 ORDER BY OBJECT_ID";
 }
 
@@ -61,7 +59,7 @@ echo "Number of Objects:" . $sth->rowCount() ."\r\n";
 
  $sfx_query = "SELECT DISTINCT OP_ID, trim(Threshold) Threshold, trim(LCL_Threshold) LCL_Threshold , IS_FREE 
             FROM  thresholds
-            WHERE object_id = :object_id and Threshold != 'N'            
+            WHERE object_id = :object_id            
             ORDER BY object_id";
 
 $sth1 = $conn->prepare($sfx_query);
